@@ -74,6 +74,14 @@ export default class Game extends Phaser.Scene {
     })
 
     this.input.on('gameobjectdown', async (pointer, gameObject) => {
+      if (this.tweensArr) {
+        for (let i = 0; i < this.tweensArr.length; i++) {
+          if (this.tweensArr[i].isPlaying()) {
+            return false
+          }
+        }
+      }
+
       this.sound.play('pickup')
 
       if (!this.timeStart) {
@@ -186,8 +194,9 @@ export default class Game extends Phaser.Scene {
   }
 
   moveNumber(arr) {
+    this.tweensArr = []
     for (let i = 0; i < arr.length; i++) {
-      this.tweens.add({
+      const tween = this.tweens.add({
         targets: arr[i].number,
         x: arr[i].x,
         y: arr[i].y,
@@ -202,6 +211,8 @@ export default class Game extends Phaser.Scene {
           this.isComplete()
         },
       })
+
+      this.tweensArr.push(tween)
     }
   }
 
