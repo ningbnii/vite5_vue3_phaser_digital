@@ -1,4 +1,6 @@
 <template>
+  <div class="absolute top-0 left-0 mt-4 w-full text-center text-red-500 text-base">温馨提示：一次可以移动多个方块</div>
+
   <div class="absolute top-0 right-0 m-4">
     <button class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded" @click="goRank">排行榜</button>
   </div>

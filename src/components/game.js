@@ -15,24 +15,24 @@ export default class Game extends Phaser.Scene {
       this.sound.play('music', { loop: true })
     }
     this.gameItems = []
+
     this.numbers = []
 
-    if (this.sys.game.device.os.android || this.sys.game.device.os.iOS) {
-      this.itemWidth = Math.round((this.sys.game.config.width - 20 - 5 * this.dimension) / this.dimension)
-    } else {
+    if (this.sys.game.device.os.desktop) {
       this.itemWidth = Math.round(this.sys.game.config.height / 2 / this.dimension)
+    } else {
+      this.itemWidth = Math.round((this.sys.game.config.width - 20 - 5 * this.dimension) / this.dimension)
     }
 
     this.itemPadding = 5
+
     this.createCompleteStr()
 
     for (let i = 0; i < this.dimension; i++) {
       for (let j = 0; j < this.dimension; j++) {
         const gameItem = new GameItem(this, 0, 0, this.itemWidth, this.numbers[i][j], i, j)
+
         this.gameItems.push(gameItem)
-        if (this.numbers[i][j] === 0) {
-          this.zeroIndex = this.gameItems.length - 1
-        }
       }
     }
 
@@ -54,6 +54,7 @@ export default class Game extends Phaser.Scene {
     this.timeText = this.add.text(0, -40, 'time：0', fontStyle)
 
     const nicknameText = this.add.text(0, -80, `${store.state.nickname}`, fontStyle)
+
     this.add.existing(this.timeText)
 
     this.timer = this.time.addEvent({
@@ -61,8 +62,10 @@ export default class Game extends Phaser.Scene {
       callback: () => {
         if (this.timeStart) {
           this.timeValue++
+
           this.second = Math.floor(this.timeValue / 1000)
           this.millisecond = this.timeValue % 1000
+
           this.timeText.setText(`time：${this.second}'${this.millisecond}''`)
         }
       },
@@ -70,18 +73,81 @@ export default class Game extends Phaser.Scene {
       loop: true,
     })
 
-    this.input.on('gameobjectdown', (pointer, gameObject) => {
+    this.input.on('gameobjectdown', async (pointer, gameObject) => {
       this.sound.play('pickup')
+
       if (!this.timeStart) {
         this.timeStart = true
       }
-      const { x, y } = gameObject
-      const { x: zeroX, y: zeroY } = this.gameItems[this.zeroIndex]
+      this.zeroIndex = this.findNumberIndex(0)
 
-      if ((x === zeroX && Math.abs(y - zeroY) === this.itemWidth + this.itemPadding) || (y === zeroY && Math.abs(x - zeroX) === this.itemWidth + this.itemPadding)) {
-        this.swapNumber(gameObject, this.gameItems[this.zeroIndex])
+      const { i, j } = gameObject
 
-        this.swapNumberInArray(gameObject, this.gameItems[this.zeroIndex])
+      const { i: zeroI, j: zeroJ } = this.gameItems[this.zeroIndex]
+
+      let exceptZeroNumbers = []
+
+      if (i === zeroI || (j === zeroJ && !(i === zeroI && j === zeroJ))) {
+        if (i === zeroI) {
+          if (j < zeroJ) {
+            for (let k = j; k < zeroJ; k++) {
+              exceptZeroNumbers.push(this.numbers[i][k])
+            }
+            exceptZeroNumbers.reverse()
+          } else {
+            for (let k = zeroJ + 1; k <= j; k++) {
+              exceptZeroNumbers.push(this.numbers[i][k])
+            }
+          }
+        }
+
+        if (j === zeroJ) {
+          if (i < zeroI) {
+            for (let k = i; k < zeroI; k++) {
+              exceptZeroNumbers.push(this.numbers[k][j])
+            }
+            exceptZeroNumbers.reverse()
+          } else {
+            for (let k = zeroI + 1; k <= i; k++) {
+              exceptZeroNumbers.push(this.numbers[k][j])
+            }
+          }
+        }
+
+        const exceptZeroNumbersIndex = []
+        exceptZeroNumbers.forEach((item) => {
+          exceptZeroNumbersIndex.push(this.findNumberIndex(item))
+        })
+        const moveNumberArr = []
+
+        for (let k = 0; k < exceptZeroNumbersIndex.length; k++) {
+          if (k === 0) {
+            moveNumberArr.push({
+              number: this.gameItems[exceptZeroNumbersIndex[k]],
+              x: this.gameItems[this.zeroIndex].x,
+              y: this.gameItems[this.zeroIndex].y,
+              i: this.gameItems[this.zeroIndex].i,
+              j: this.gameItems[this.zeroIndex].j,
+            })
+          } else {
+            moveNumberArr.push({
+              number: this.gameItems[exceptZeroNumbersIndex[k]],
+              x: this.gameItems[exceptZeroNumbersIndex[k - 1]].x,
+              y: this.gameItems[exceptZeroNumbersIndex[k - 1]].y,
+              i: this.gameItems[exceptZeroNumbersIndex[k - 1]].i,
+              j: this.gameItems[exceptZeroNumbersIndex[k - 1]].j,
+            })
+          }
+        }
+
+        moveNumberArr.push({
+          number: this.gameItems[this.zeroIndex],
+          x: gameObject.x,
+          y: gameObject.y,
+          i: gameObject.i,
+          j: gameObject.j,
+        })
+        this.moveNumber(moveNumberArr)
       }
     })
 
@@ -111,39 +177,32 @@ export default class Game extends Phaser.Scene {
     })
   }
 
-  swapNumber(number1, number2) {
-    const { x: x1, y: y1 } = number1
-    const { x: x2, y: y2 } = number2
-
-    this.tweens.add({
-      targets: number1,
-      x: x2,
-      y: y2,
-      duration: 100,
-      ease: 'Linear',
-    })
-    this.tweens.add({
-      targets: number2,
-      x: x1,
-      y: y1,
-      duration: 100,
-      ease: 'Linear',
-    })
+  findNumberIndex(num) {
+    for (let i = 0; i < this.gameItems.length; i++) {
+      if (this.gameItems[i].number === num) {
+        return i
+      }
+    }
   }
 
-  swapNumberInArray(number1, number2) {
-    const { i: x1, j: y1 } = number1
-    const { i: x2, j: y2 } = number2
-    const temp = this.numbers[x1][y1]
-    this.numbers[x1][y1] = this.numbers[x2][y2]
-    this.numbers[x2][y2] = temp
+  moveNumber(arr) {
+    for (let i = 0; i < arr.length; i++) {
+      this.tweens.add({
+        targets: arr[i].number,
+        x: arr[i].x,
+        y: arr[i].y,
+        duration: 100,
+        ease: 'Linear',
+        onComplete: () => {
+          this.numbers[arr[i].i][arr[i].j] = arr[i].number.number
 
-    number1.i = x2
-    number1.j = y2
-    number2.i = x1
-    number2.j = y1
+          arr[i].number.i = arr[i].i
+          arr[i].number.j = arr[i].j
 
-    this.isComplete()
+          this.isComplete()
+        },
+      })
+    }
   }
 
   createCompleteStr() {

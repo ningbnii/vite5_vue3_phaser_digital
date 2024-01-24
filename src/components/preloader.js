@@ -10,7 +10,17 @@ const { toast } = useToast()
 export default class Preloader extends Phaser.Scene {
   constructor() {
     super('Preloader')
-    let s = this
+
+    this.isPC = !/Android|webOS|iPhone|iPod|BlackBerry/i.test(navigator.userAgent)
+    if (this.isPC) {
+      if (!Notification) {
+        console.log('您的浏览器不支持桌面通知。')
+      } else {
+        if (Notification.permission !== 'granted') {
+          Notification.requestPermission()
+        }
+      }
+    }
     this.loadText
     this.connection = new Push({
       url: 'wss://demo.api.wxbuluo.com',
@@ -25,18 +35,10 @@ export default class Preloader extends Phaser.Scene {
         description: data.content,
       })
 
-      if (Notification && Notification.permission === 'granted') {
+      if (this.isPc && Notification && Notification.permission === 'granted') {
         s.showNotification(data.content)
       }
     })
-
-    if (!Notification) {
-      console.log('您的浏览器不支持桌面通知。')
-    } else {
-      if (Notification.permission !== 'granted') {
-        Notification.requestPermission()
-      }
-    }
   }
 
   preload() {
@@ -165,7 +167,7 @@ export default class Preloader extends Phaser.Scene {
       }
       const notification = new Notification('数字方格', options)
       notification.onclick = function () {
-        window.open('https://demo.wxbuluo.com/digital')
+        window.open('https://demo.wxbuluo.com/digital/')
       }
     }
   }
